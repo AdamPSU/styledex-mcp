@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from styledex_mcp.capture import CaptureService
-from styledex_mcp.store import StyleDexStore
+from copycat.capture import CaptureService
+from copycat.store import CopycatStore
 
 
 class FakeCaptureBackend:
@@ -39,7 +39,7 @@ class FakeCaptureBackend:
 
 @pytest.fixture()
 def service(tmp_path: Path) -> CaptureService:
-    store = StyleDexStore(tmp_path)
+    store = CopycatStore(tmp_path)
     store.create(alias="linear", source_url="https://linear.app/")
     return CaptureService(store=store, backend=FakeCaptureBackend())
 
@@ -159,7 +159,7 @@ def test_capture_rejects_unbounded_resource_knobs(service: CaptureService) -> No
 
 @pytest.mark.anyio
 async def test_real_capture_backend_works_inside_asyncio_loop(tmp_path: Path) -> None:
-    store = StyleDexStore(tmp_path)
+    store = CopycatStore(tmp_path)
     store.create(alias="async-site", source_url="data:text/html,<title>Async</title><main>Hello</main>")
     service = CaptureService(store=store)
 
@@ -177,7 +177,7 @@ async def test_real_capture_backend_works_inside_asyncio_loop(tmp_path: Path) ->
 
 @pytest.mark.anyio
 async def test_real_screenshot_capture_works_inside_asyncio_loop(tmp_path: Path) -> None:
-    store = StyleDexStore(tmp_path)
+    store = CopycatStore(tmp_path)
     store.create(alias="async-site", source_url="data:text/html,<title>Async</title><main>Hello</main>")
     service = CaptureService(store=store)
 

@@ -7,7 +7,7 @@ from collections.abc import Callable, Coroutine
 from pathlib import Path
 from typing import Any, Literal, Protocol, TypeVar
 
-from .store import StyleDexStore
+from .store import CopycatStore
 
 Viewport = Literal["desktop", "mobile"]
 ExtractKind = Literal["links", "cssVariables", "computedStyles"]
@@ -43,7 +43,7 @@ class CaptureBackend(Protocol):
 
 
 class CaptureService:
-    def __init__(self, *, store: StyleDexStore, backend: CaptureBackend | None = None) -> None:
+    def __init__(self, *, store: CopycatStore, backend: CaptureBackend | None = None) -> None:
         self.store = store
         self.backend = backend or PlaywrightCaptureBackend()
 

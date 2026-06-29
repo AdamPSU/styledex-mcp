@@ -6,15 +6,15 @@ from typing import Any, cast
 
 import pytest
 
-from styledex_mcp.store import MetadataPage, StyleDexStore
+from copycat.store import CopycatStore, MetadataPage
 
 
 @pytest.fixture()
-def store(tmp_path: Path) -> StyleDexStore:
-    return StyleDexStore(tmp_path)
+def store(tmp_path: Path) -> CopycatStore:
+    return CopycatStore(tmp_path)
 
 
-def test_creates_canonical_alias_layout_with_skeleton_metadata(store: StyleDexStore, tmp_path: Path) -> None:
+def test_creates_canonical_alias_layout_with_skeleton_metadata(store: CopycatStore, tmp_path: Path) -> None:
     result = store.create(alias="linear", source_url="https://linear.app/")
 
     assert result["alias"] == "linear"
@@ -44,13 +44,13 @@ def test_creates_canonical_alias_layout_with_skeleton_metadata(store: StyleDexSt
     }
 
 
-def test_refuses_invalid_aliases_and_path_traversal(store: StyleDexStore) -> None:
+def test_refuses_invalid_aliases_and_path_traversal(store: CopycatStore) -> None:
     for alias in ["../linear", "Linear", "linear_app"]:
         with pytest.raises(ValueError, match="Invalid alias"):
             store.create(alias=alias, source_url="https://linear.app/")
 
 
-def test_refuses_existing_aliases_unless_overwrite_mode_is_explicit(store: StyleDexStore) -> None:
+def test_refuses_existing_aliases_unless_overwrite_mode_is_explicit(store: CopycatStore) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
 
     with pytest.raises(FileExistsError, match="already exists"):
@@ -61,7 +61,7 @@ def test_refuses_existing_aliases_unless_overwrite_mode_is_explicit(store: Style
 
 
 def test_overwrite_preserves_existing_alias_when_replacement_setup_fails(
-    store: StyleDexStore,
+    store: CopycatStore,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
@@ -83,7 +83,7 @@ def test_overwrite_preserves_existing_alias_when_replacement_setup_fails(
     assert profile["design"] == "# Existing\n"
 
 
-def test_save_writes_profile_metadata_evidence_and_returns_validation(store: StyleDexStore, tmp_path: Path) -> None:
+def test_save_writes_profile_metadata_evidence_and_returns_validation(store: CopycatStore, tmp_path: Path) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
     (tmp_path / "linear" / "screenshots" / "desktop-fold.png").write_text("png-bytes")
     page_dir = tmp_path / "linear" / "evidence" / "pages" / "pricing"
@@ -122,7 +122,7 @@ def test_save_writes_profile_metadata_evidence_and_returns_validation(store: Sty
     assert profile["validation"]["valid"] is True
 
 
-def test_save_rejects_evidence_outside_or_missing_alias_directory(store: StyleDexStore) -> None:
+def test_save_rejects_evidence_outside_or_missing_alias_directory(store: CopycatStore) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
 
     with pytest.raises(ValueError, match="inside alias"):
@@ -132,7 +132,7 @@ def test_save_rejects_evidence_outside_or_missing_alias_directory(store: StyleDe
         store.save(alias="linear", evidence=["evidence/missing.json"])
 
 
-def test_save_rejects_artifacts_in_wrong_directories(store: StyleDexStore, tmp_path: Path) -> None:
+def test_save_rejects_artifacts_in_wrong_directories(store: CopycatStore, tmp_path: Path) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
     (tmp_path / "linear" / "screenshots" / "desktop-fold.png").write_text("png-bytes")
     (tmp_path / "linear" / "evidence" / "desktop-snapshot.json").write_text("{}")
@@ -144,7 +144,7 @@ def test_save_rejects_artifacts_in_wrong_directories(store: StyleDexStore, tmp_p
         store.save(alias="linear", evidence=["screenshots/desktop-fold.png"])
 
 
-def test_save_rejects_invalid_pages_before_writing_profile_files(store: StyleDexStore, tmp_path: Path) -> None:
+def test_save_rejects_invalid_pages_before_writing_profile_files(store: CopycatStore, tmp_path: Path) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
 
     with pytest.raises(ValueError, match="pages"):
@@ -157,7 +157,7 @@ def test_save_rejects_invalid_pages_before_writing_profile_files(store: StyleDex
     assert not (tmp_path / "linear" / "DESIGN.md").exists()
 
 
-def test_save_deduplicates_pages(store: StyleDexStore) -> None:
+def test_save_deduplicates_pages(store: CopycatStore) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
     page: MetadataPage = {
         "type": "supporting",
@@ -172,7 +172,7 @@ def test_save_deduplicates_pages(store: StyleDexStore) -> None:
     assert store.get("linear")["metadata"]["pages"] == [page]
 
 
-def test_save_rejects_unserializable_tokens_before_writing_profile_files(store: StyleDexStore) -> None:
+def test_save_rejects_unserializable_tokens_before_writing_profile_files(store: CopycatStore) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
     store.save(alias="linear", design="# Existing\n", tokens={"colors": {}})
 
@@ -184,7 +184,7 @@ def test_save_rejects_unserializable_tokens_before_writing_profile_files(store: 
     assert profile["tokens"] == {"colors": {}}
 
 
-def test_get_returns_validation_summary_for_complete_and_incomplete_aliases(store: StyleDexStore) -> None:
+def test_get_returns_validation_summary_for_complete_and_incomplete_aliases(store: CopycatStore) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
 
     incomplete = store.get("linear")["validation"]
@@ -203,7 +203,7 @@ def test_get_returns_validation_summary_for_complete_and_incomplete_aliases(stor
     assert complete == {"alias": "linear", "valid": True, "issues": []}
 
 
-def test_get_returns_validation_summary_when_tokens_json_is_invalid(store: StyleDexStore, tmp_path: Path) -> None:
+def test_get_returns_validation_summary_when_tokens_json_is_invalid(store: CopycatStore, tmp_path: Path) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
     (tmp_path / "linear" / "DESIGN.md").write_text("# Linear\n")
     (tmp_path / "linear" / "tokens.json").write_text("not-json")
@@ -215,7 +215,7 @@ def test_get_returns_validation_summary_when_tokens_json_is_invalid(store: Style
     assert "tokens" not in profile
 
 
-def test_validate_reports_malformed_metadata_without_crashing(store: StyleDexStore, tmp_path: Path) -> None:
+def test_validate_reports_malformed_metadata_without_crashing(store: CopycatStore, tmp_path: Path) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
     (tmp_path / "linear" / "metadata.json").write_text(json.dumps({"schemaVersion": 1}))
 
@@ -225,7 +225,7 @@ def test_validate_reports_malformed_metadata_without_crashing(store: StyleDexSto
     assert {issue["code"] for issue in validation["issues"]} >= {"invalid_metadata"}
 
 
-def test_save_rejects_invalid_metadata_patch_fields(store: StyleDexStore) -> None:
+def test_save_rejects_invalid_metadata_patch_fields(store: CopycatStore) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
 
     with pytest.raises(ValueError, match="metadata_patch.status"):
@@ -238,7 +238,7 @@ def test_save_rejects_invalid_metadata_patch_fields(store: StyleDexStore) -> Non
         store.save(alias="linear", metadata_patch={"unknown": True})
 
 
-def test_save_rejects_invalid_metadata_patch_before_writing_profile_files(store: StyleDexStore, tmp_path: Path) -> None:
+def test_save_rejects_invalid_metadata_patch_before_writing_profile_files(store: CopycatStore, tmp_path: Path) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
 
     with pytest.raises(ValueError, match="metadata_patch.status"):
@@ -247,7 +247,7 @@ def test_save_rejects_invalid_metadata_patch_before_writing_profile_files(store:
     assert not (tmp_path / "linear" / "DESIGN.md").exists()
 
 
-def test_renames_alias_and_updates_metadata_without_overwriting_target(store: StyleDexStore) -> None:
+def test_renames_alias_and_updates_metadata_without_overwriting_target(store: CopycatStore) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
     store.create(alias="renamed-linear", source_url="https://example.com/")
 
@@ -263,7 +263,7 @@ def test_renames_alias_and_updates_metadata_without_overwriting_target(store: St
     assert store.get("renamed-linear")["metadata"]["alias"] == "renamed-linear"
 
 
-def test_deletes_captured_alias_immediately(store: StyleDexStore) -> None:
+def test_deletes_captured_alias_immediately(store: CopycatStore) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
     assert store.delete("linear") == {"alias": "linear", "deleted": True}
 

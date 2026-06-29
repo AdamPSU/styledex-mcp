@@ -35,7 +35,7 @@ class MetadataFiles(TypedDict):
     evidence: list[str]
 
 
-class StyleDexMetadata(TypedDict):
+class CopycatMetadata(TypedDict):
     schemaVersion: Literal[1]
     alias: str
     sourceUrl: str
@@ -64,7 +64,7 @@ class StoreProfile(TypedDict):
     alias: str
     paths: AliasPaths
     validation: ValidationResult
-    metadata: NotRequired[StyleDexMetadata]
+    metadata: NotRequired[CopycatMetadata]
     design: NotRequired[str]
     tokens: NotRequired[Any]
     notes: NotRequired[str]
@@ -82,7 +82,7 @@ class ValidationResult(TypedDict):
     issues: list[ValidationIssue]
 
 
-class StyleDexStore:
+class CopycatStore:
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root).expanduser().resolve()
 
@@ -115,7 +115,7 @@ class StyleDexStore:
 
         paths = self.paths(alias)
         now = _now_iso()
-        metadata: StyleDexMetadata = {
+        metadata: CopycatMetadata = {
             "schemaVersion": 1,
             "alias": alias,
             "sourceUrl": source_url,
@@ -241,7 +241,7 @@ class StyleDexStore:
                 "issues": [{"code": "missing_alias", "message": f'Alias "{alias}" does not exist', "path": paths["root"]}],
             }
 
-        metadata: StyleDexMetadata | None = None
+        metadata: CopycatMetadata | None = None
         try:
             metadata = self._read_metadata(alias)
             issues.extend(self._metadata_shape_issues(metadata, paths["metadata"]))
@@ -333,12 +333,12 @@ class StyleDexStore:
             raise ValueError(f'Artifact path "{path}" must be inside alias "{alias}"')
         return resolved, resolved.relative_to(alias_root).as_posix()
 
-    def _initialize_alias_dir(self, alias_dir: Path, metadata: StyleDexMetadata) -> None:
+    def _initialize_alias_dir(self, alias_dir: Path, metadata: CopycatMetadata) -> None:
         (alias_dir / "screenshots").mkdir(parents=True, exist_ok=True)
         (alias_dir / "evidence" / "pages").mkdir(parents=True, exist_ok=True)
         self._write_text_file_atomically(alias_dir / "metadata.json", self._metadata_text(metadata))
 
-    def _replace_alias_dir(self, alias: str, metadata: StyleDexMetadata) -> None:
+    def _replace_alias_dir(self, alias: str, metadata: CopycatMetadata) -> None:
         alias_dir = self._alias_dir(alias)
         self._assert_not_symlink(alias_dir)
         self.root.mkdir(parents=True, exist_ok=True)
@@ -397,9 +397,9 @@ class StyleDexStore:
             raise ValueError("pages must be a list of page objects")
         return pages
 
-    def _merge_metadata(self, metadata: StyleDexMetadata, patch: dict[str, Any]) -> StyleDexMetadata:
+    def _merge_metadata(self, metadata: CopycatMetadata, patch: dict[str, Any]) -> CopycatMetadata:
         self._assert_metadata_patch(patch)
-        next_metadata = cast(StyleDexMetadata, {**metadata, **patch})
+        next_metadata = cast(CopycatMetadata, {**metadata, **patch})
         next_metadata["schemaVersion"] = 1
         next_metadata["alias"] = metadata["alias"]
         next_metadata["createdAt"] = metadata["createdAt"]
@@ -453,16 +453,16 @@ class StyleDexStore:
 
         return issues
 
-    def _read_metadata(self, alias: str) -> StyleDexMetadata:
+    def _read_metadata(self, alias: str) -> CopycatMetadata:
         metadata_path = Path(self.paths(alias)["metadata"])
         if not metadata_path.exists():
             raise FileNotFoundError(f'Alias "{alias}" does not exist or metadata.json is missing')
-        return cast(StyleDexMetadata, json.loads(metadata_path.read_text(encoding="utf-8")))
+        return cast(CopycatMetadata, json.loads(metadata_path.read_text(encoding="utf-8")))
 
-    def _write_metadata(self, alias: str, metadata: StyleDexMetadata) -> None:
+    def _write_metadata(self, alias: str, metadata: CopycatMetadata) -> None:
         self._write_text_file_atomically(Path(self.paths(alias)["metadata"]), self._metadata_text(metadata))
 
-    def _metadata_text(self, metadata: StyleDexMetadata) -> str:
+    def _metadata_text(self, metadata: CopycatMetadata) -> str:
         return f"{json.dumps(metadata, indent=2)}\n"
 
     def _write_files_atomically(self, writes: dict[Path, str]) -> None:
@@ -538,7 +538,7 @@ class StyleDexStore:
     def _alias_dir(self, alias: str) -> Path:
         alias_dir = (self.root / alias).resolve()
         if not _is_inside(self.root, alias_dir):
-            raise ValueError(f'Alias path for "{alias}" escapes StyleDex root')
+            raise ValueError(f'Alias path for "{alias}" escapes Copycat root')
         return alias_dir
 
     def _assert_not_symlink(self, path: Path) -> None:

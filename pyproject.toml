@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "styledex-mcp"
+name = "copycat-mcp"
 version = "0.1.0"
-description = "Thin MCP server for managing StyleDex design library artifacts."
+description = "Thin MCP server for managing Copycat design library artifacts."
 readme = "README.md"
 requires-python = ">=3.12"
 keywords = ["mcp", "model-context-protocol", "playwright", "design-systems", "agents"]
@@ -28,16 +28,16 @@ dev = [
 ]
 
 [project.scripts]
-styledex-mcp = "styledex_mcp.server:main"
+copycat-mcp = "copycat.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/styledex_mcp"]
+packages = ["copycat"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["."]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src", "tests"]
+files = ["copycat", "tests"]

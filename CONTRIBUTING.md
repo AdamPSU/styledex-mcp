@@ -23,7 +23,7 @@ For package smoke testing, install the current checkout as a persistent uv tool:
 uv tool install .
 ```
 
-The installed command is `styledex-mcp`. It is a stdio MCP server, so it waits for an MCP client on stdin when run directly.
+The installed command is `copycat-mcp`. It is a stdio MCP server, so it waits for an MCP client on stdin when run directly.
 
 ## Safety Expectations
 
@@ -34,6 +34,6 @@ Do not write to stdout from server code. stdio MCP uses stdout for protocol mess
 1. Run tests and mypy.
 2. Build the package with `uv build`.
 3. Install the built package in a clean environment.
-4. Verify `styledex-mcp` is available as an executable.
-5. Verify an MCP client can list the StyleDex tools.
+4. Verify `copycat-mcp` is available as an executable.
+5. Verify an MCP client can list the Copycat tools.
 6. Publish the package.

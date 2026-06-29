@@ -9,7 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from .capture import CaptureService, ExtractKind, Viewport
-from .store import AliasStatus, Confidence, MetadataPage, StyleDexStore
+from .store import AliasStatus, Confidence, CopycatStore, MetadataPage
 
 
 WaitMs: TypeAlias = Annotated[int, Field(ge=0, le=30_000)]
@@ -17,34 +17,30 @@ SelectorLimit: TypeAlias = Annotated[int, Field(ge=1, le=1_000)]
 
 
 def default_root() -> Path:
-    configured_root = os.environ.get("STYLEDEX_ROOT")
+    configured_root = os.environ.get("COPYCAT_ROOT")
     if configured_root:
         return Path(configured_root).expanduser().resolve()
 
-    root = Path("~/.styledex/designs").expanduser().resolve()
-    legacy_root = Path(os.environ.get("STYLE_MIRROR_ROOT", "~/.style-mirror/designs")).expanduser().resolve()
-    if not root.exists() and legacy_root.exists():
-        return legacy_root
-    return root
+    return Path("~/.copycat/designs").expanduser().resolve()
 
 
-def create_mcp_server(store: StyleDexStore | None = None, capture_service: CaptureService | None = None) -> FastMCP:
-    store = store or StyleDexStore(default_root())
+def create_mcp_server(store: CopycatStore | None = None, capture_service: CaptureService | None = None) -> FastMCP:
+    store = store or CopycatStore(default_root())
     capture_service = capture_service or CaptureService(store=store)
-    mcp = FastMCP("styledex")
+    mcp = FastMCP("copycat")
 
     @mcp.tool()
-    def styledex_list() -> dict[str, Any]:
-        """List saved StyleDex aliases with metadata summaries."""
+    def copycat_list() -> dict[str, Any]:
+        """List saved Copycat aliases with metadata summaries."""
         return store.list()
 
     @mcp.tool()
-    def styledex_get(alias: str) -> dict[str, Any]:
-        """Read a saved StyleDex alias profile, metadata, tokens, notes, and artifact paths."""
+    def copycat_get(alias: str) -> dict[str, Any]:
+        """Read a saved Copycat alias profile, metadata, tokens, notes, and artifact paths."""
         return dict(store.get(alias))
 
     @mcp.tool()
-    def styledex_create(
+    def copycat_create(
         alias: str,
         sourceUrl: str,
         mode: Literal["create", "overwrite"] = "create",
@@ -53,7 +49,7 @@ def create_mcp_server(store: StyleDexStore | None = None, capture_service: Captu
         return store.create(alias=alias, source_url=sourceUrl, mode=mode)
 
     @mcp.tool()
-    def styledex_capture_screenshot(
+    def copycat_capture_screenshot(
         alias: str,
         url: str,
         path: str,
@@ -72,7 +68,7 @@ def create_mcp_server(store: StyleDexStore | None = None, capture_service: Captu
         )
 
     @mcp.tool()
-    def styledex_capture_snapshot(
+    def copycat_capture_snapshot(
         alias: str,
         url: str,
         path: str,
@@ -83,7 +79,7 @@ def create_mcp_server(store: StyleDexStore | None = None, capture_service: Captu
         return capture_service.capture_snapshot(alias=alias, url=url, path=path, viewport=viewport, wait_ms=waitMs)
 
     @mcp.tool()
-    def styledex_capture_extract(
+    def copycat_capture_extract(
         alias: str,
         url: str,
         path: str,
@@ -104,7 +100,7 @@ def create_mcp_server(store: StyleDexStore | None = None, capture_service: Captu
         )
 
     @mcp.tool()
-    def styledex_save(
+    def copycat_save(
         alias: str,
         design: str | None = None,
         tokens: Any | None = None,
@@ -141,11 +137,11 @@ def create_mcp_server(store: StyleDexStore | None = None, capture_service: Captu
             )
         )
 
-    def styledex_rename(**kwargs: str) -> dict[str, Any]:
+    def copycat_rename(**kwargs: str) -> dict[str, Any]:
         return dict(store.rename(old_alias=kwargs["from"], new_alias=kwargs["to"]))
 
     setattr(
-        styledex_rename,
+        copycat_rename,
         "__signature__",
         inspect.Signature(
             parameters=[
@@ -160,13 +156,13 @@ def create_mcp_server(store: StyleDexStore | None = None, capture_service: Captu
         ),
     )
     mcp.tool(
-        name="styledex_rename",
-        description="Rename a StyleDex alias and update metadata. Refuses target collisions.",
-    )(styledex_rename)
+        name="copycat_rename",
+        description="Rename a Copycat alias and update metadata. Refuses target collisions.",
+    )(copycat_rename)
 
     @mcp.tool()
-    def styledex_delete(alias: str) -> dict[str, Any]:
-        """Delete a StyleDex alias directory immediately. No confirmation argument is required."""
+    def copycat_delete(alias: str) -> dict[str, Any]:
+        """Delete a Copycat alias directory immediately. No confirmation argument is required."""
         return store.delete(alias)
 
     return mcp
