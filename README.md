@@ -1,44 +1,33 @@
-# styledex-mcp
+# StyleDex MCP
 
-Thin MCP server for managing the StyleDex design library at `~/.styledex/designs`.
+StyleDex gives your coding agent a place to keep design references.
 
-The server owns aliases, curated Playwright capture, metadata, artifact writes, validation summaries, rename, list, and delete. It does not expose generic browser controls; it only captures the StyleDex evidence types agents need.
+Point an MCP client at a site, give it an alias, and StyleDex saves the screenshots and evidence an agent needs to describe the style: DOM snapshots, CSS variables, computed styles, notes, design guidance, and tokens. Later, the agent can pull that profile back by name and use it as direction for new UI.
+
+This avoids your agent reinventing the wheel on every new project. The agent can inspect a saved profile instead of relying on a one-time page description from an old session.
+
+## How it works
+
+A typical capture can start with one sentence:
+
+1. You say: `Save https://linear.app as linear`.
+2. Your MCP client routes the request to StyleDex, and the agent calls `styledex_create` to create `~/.styledex/designs/linear/`.
+3. The agent captures Linear with Playwright: screenshots, a DOM snapshot, CSS variables, computed styles, and any page evidence it needs.
+4. The agent calls `styledex_save` to write `DESIGN.md`, `tokens.json`, `notes.md`, metadata, screenshots, and evidence paths into the `linear` profile.
+5. Later, you can say `Use linear as visual direction for this settings page`, and the agent can read the saved profile with `styledex_get` instead of starting over.
+
+Each alias is isolated on disk. A profile for `linear` lives at `~/.styledex/designs/linear/`, and its screenshots stay inside that folder.
 
 ## Install
 
-Install the MCP server:
+Install the MCP server & Playwright Browser:
 
 ```bash
 uv tool install styledex-mcp
+uvx --from playwright playwright install chromium
 ```
 
-Install the Playwright browser used for captures:
-
-```bash
-uvx --from styledex-mcp playwright install chromium
-```
-
-If `styledex-mcp` is not found after installation, add uv's tool directory to your shell path:
-
-```bash
-uv tool update-shell
-```
-
-Restart your shell after updating the path.
-
-Upgrade later with:
-
-```bash
-uv tool upgrade styledex-mcp
-```
-
-Uninstall with:
-
-```bash
-uv tool uninstall styledex-mcp
-```
-
-## MCP Config
+## Connect an MCP client
 
 Use the installed `styledex-mcp` executable in your MCP client config.
 
@@ -68,30 +57,34 @@ For opencode:
 
 Restart your MCP client after changing MCP config.
 
-`styledex-mcp` uses stdio transport. Running it directly in a terminal is only useful for smoke testing; it waits for an MCP client on stdin.
+## Try it
 
-## Environment
+Ask your MCP-aware coding agent for the result you want. You usually do not need to call the tools by hand.
 
-- `STYLEDEX_ROOT`: optional override for the design library root. Defaults to `~/.styledex/designs`.
-- Legacy fallback: when `STYLEDEX_ROOT` is unset, `~/.styledex/designs` does not exist, and the old Style Mirror root exists, StyleDex reads `STYLE_MIRROR_ROOT` or `~/.style-mirror/designs` so existing captures remain available after the rename.
+```text
+Capture https://vercel.com as a StyleDex profile named vercel.
+Save desktop and mobile screenshots, extract CSS variables and computed styles,
+then write a concise DESIGN.md with colors, typography, spacing, layout patterns,
+component notes, confidence, and caveats.
+```
 
-## Tools
+```text
+List my saved StyleDex profiles and tell me which one fits a clean B2B SaaS
+settings page.
+```
 
-- `styledex_list`
-- `styledex_get`
-- `styledex_create`
-- `styledex_capture_screenshot`
-- `styledex_capture_snapshot`
-- `styledex_capture_extract`
-- `styledex_save`
-- `styledex_rename`
-- `styledex_delete`
+```text
+Use the vercel StyleDex profile as visual direction for a billing settings page
+in this app. Do not copy assets or text. Reuse the spacing, type scale, color
+behavior, and component rhythm.
+```
 
-`styledex_create` supports `mode="overwrite"`.
+```text
+Open the vercel StyleDex profile and summarize the design tokens I should use
+for a pricing page.
+```
 
-`styledex_delete` permanently removes an alias directory.
-
-## Capture Contract
+If your client exposes raw tools, the usual capture flow is:
 
 ```text
 styledex_create
@@ -101,31 +94,38 @@ styledex_capture_extract
 styledex_save
 ```
 
-`styledex_get` and `styledex_save` include a validation summary, so there is no separate public validation tool.
+## What gets saved
 
-`styledex_capture_extract` supports `links`, `cssVariables`, and `computedStyles`.
+StyleDex writes each profile under:
 
-`styledex_save` accepts profile artifacts plus explicit metadata fields: `status`, `confidence`, `caveats`, and `observedNoise`. The MCP updates protected metadata fields such as `alias`, `createdAt`, `lastUpdated`, and `files` itself.
+```text
+~/.styledex/designs/<alias>/
+```
 
-## Artifact Layout
+The important files are:
 
-Each saved site is isolated by alias under `~/.styledex/designs/<alias>/`. Screenshots for one alias are never shared with another alias.
+```text
+DESIGN.md       Human-readable design guidance
+tokens.json     Structured colors, type, spacing, radii, shadows, and other tokens
+notes.md        Additional observations or agent notes
+metadata.json   Source URL, status, confidence, pages, caveats, and file index
+screenshots/    Captured desktop and mobile screenshots
+evidence/       DOM snapshots, links, CSS variables, and computed styles
+```
 
-Use artifact-type directories inside each alias:
+## Storage location
 
-- Screenshots: `screenshots/`
-- Structured evidence: `evidence/`
+By default, StyleDex stores profiles in:
 
-Seed screenshots use the paths returned by `styledex_create` in `suggestedScreenshotPaths`, such as `screenshots/desktop-fold.png`.
+```text
+~/.styledex/designs
+```
 
-Supporting page screenshots should also stay under the same alias-level `screenshots/` directory. Use the returned `suggestedPageScreenshotPaths` patterns, for example:
+Set `STYLEDEX_ROOT` to use a different design library root.
 
-- `screenshots/pricing-desktop-full.png`
-- `screenshots/pricing-mobile-full.png`
+For older Style Mirror installs, StyleDex has a legacy fallback. When `STYLEDEX_ROOT` is unset, `~/.styledex/designs` does not exist, and the old root exists, StyleDex reads `STYLE_MIRROR_ROOT` or `~/.style-mirror/designs` so existing captures remain available after the rename.
 
-Do not put screenshots under `evidence/`. Page-specific JSON evidence can use paths such as `evidence/pages/pricing/computed-styles.json`.
-
-## Development Setup
+## Development
 
 ```bash
 python3 -m venv .venv
