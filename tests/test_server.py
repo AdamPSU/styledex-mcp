@@ -17,13 +17,26 @@ def test_creates_fastmcp_server(tmp_path: Path) -> None:
 
 def test_default_root_prefers_copycat_env_then_default_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     copycat_root = tmp_path / "copycat" / "designs"
+    default_copycat_root = tmp_path / ".copycat" / "designs"
+    legacy_root = tmp_path / ".style-mirror" / "designs"
 
     monkeypatch.setenv("COPYCAT_ROOT", str(copycat_root))
     assert default_root() == copycat_root
 
     monkeypatch.delenv("COPYCAT_ROOT")
     monkeypatch.setenv("HOME", str(tmp_path))
-    assert default_root() == tmp_path / ".copycat" / "designs"
+    assert default_root() == default_copycat_root
+
+    legacy_root.mkdir(parents=True)
+    assert default_root() == legacy_root
+
+    configured_legacy_root = tmp_path / "configured-legacy"
+    configured_legacy_root.mkdir()
+    monkeypatch.setenv("STYLE_MIRROR_ROOT", str(configured_legacy_root))
+    assert default_root() == configured_legacy_root
+
+    default_copycat_root.mkdir(parents=True)
+    assert default_root() == default_copycat_root
 
 
 @pytest.mark.anyio

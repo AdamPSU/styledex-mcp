@@ -21,7 +21,21 @@ def default_root() -> Path:
     if configured_root:
         return Path(configured_root).expanduser().resolve()
 
-    return Path("~/.copycat/designs").expanduser().resolve()
+    copycat_root = Path("~/.copycat/designs").expanduser().resolve()
+    if copycat_root.exists():
+        return copycat_root
+
+    configured_legacy_root = os.environ.get("STYLE_MIRROR_ROOT")
+    if configured_legacy_root:
+        legacy_root = Path(configured_legacy_root).expanduser().resolve()
+        if legacy_root.exists():
+            return legacy_root
+
+    legacy_root = Path("~/.style-mirror/designs").expanduser().resolve()
+    if legacy_root.exists():
+        return legacy_root
+
+    return copycat_root
 
 
 def create_mcp_server(store: CopycatStore | None = None, capture_service: CaptureService | None = None) -> FastMCP:
@@ -31,12 +45,12 @@ def create_mcp_server(store: CopycatStore | None = None, capture_service: Captur
 
     @mcp.tool()
     def copycat_list() -> dict[str, Any]:
-        """List saved Copycat aliases with metadata summaries."""
+        """List saved Copycat aliases when the user wants to browse available captured styles. Reads metadata from the Copycat library root: COPYCAT_ROOT when set, otherwise ~/.copycat/designs."""
         return store.list()
 
     @mcp.tool()
     def copycat_get(alias: str) -> dict[str, Any]:
-        """Read a saved Copycat alias profile, metadata, tokens, notes, and artifact paths."""
+        """Read an existing Copycat profile before applying, inspecting, or enriching a saved style. Returns DESIGN.md, tokens, notes, metadata, screenshots, and evidence stored under the alias directory in the Copycat library root."""
         return dict(store.get(alias))
 
     @mcp.tool()
@@ -45,7 +59,7 @@ def create_mcp_server(store: CopycatStore | None = None, capture_service: Captur
         sourceUrl: str,
         mode: Literal["create", "overwrite"] = "create",
     ) -> dict[str, Any]:
-        """Create alias directories and return absolute alias paths plus relative suggested capture paths."""
+        """Create a new Copycat alias before the first capture for a website. Stores the profile under COPYCAT_ROOT/<alias> when COPYCAT_ROOT is set, otherwise ~/.copycat/designs/<alias>, and returns exact paths plus suggested screenshot paths."""
         return store.create(alias=alias, source_url=sourceUrl, mode=mode)
 
     @mcp.tool()
@@ -57,7 +71,7 @@ def create_mcp_server(store: CopycatStore | None = None, capture_service: Captur
         fullPage: bool = False,
         waitMs: WaitMs = 1500,
     ) -> dict[str, Any]:
-        """Capture one screenshot with Playwright and register it under the alias. Path must be alias-relative under screenshots/."""
+        """Capture visual evidence when a page's layout, density, hierarchy, or responsive behavior matters. Saves a Playwright screenshot under the alias directory at an alias-relative screenshots/ path, such as screenshots/desktop-full.png."""
         return capture_service.capture_screenshot(
             alias=alias,
             url=url,
@@ -75,7 +89,7 @@ def create_mcp_server(store: CopycatStore | None = None, capture_service: Captur
         viewport: Viewport = "desktop",
         waitMs: WaitMs = 1500,
     ) -> dict[str, Any]:
-        """Capture a lightweight DOM snapshot with Playwright and register it as evidence. Path must be alias-relative under evidence/."""
+        """Capture visible DOM structure when screenshots need supporting context about headings, landmarks, text snippets, and element boxes. Saves JSON evidence under the alias directory at an alias-relative evidence/ path."""
         return capture_service.capture_snapshot(alias=alias, url=url, path=path, viewport=viewport, wait_ms=waitMs)
 
     @mcp.tool()
@@ -88,7 +102,7 @@ def create_mcp_server(store: CopycatStore | None = None, capture_service: Captur
         waitMs: WaitMs = 1500,
         selectorLimit: SelectorLimit = 250,
     ) -> dict[str, Any]:
-        """Capture curated structured evidence. Path must be alias-relative under evidence/."""
+        """Capture structured evidence when the design profile needs links, CSS variables, or computed styles grounded in rendered page data. Saves JSON under the alias directory at an alias-relative evidence/ path, including page-specific paths like evidence/pages/pricing/computed-styles.json."""
         return capture_service.capture_extract(
             alias=alias,
             url=url,
@@ -113,7 +127,7 @@ def create_mcp_server(store: CopycatStore | None = None, capture_service: Captur
         caveats: list[str] | None = None,
         observedNoise: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Save profile artifacts, evidence references, explicit metadata fields, and validation for an alias."""
+        """Save or update the authored Copycat profile after capture or enrichment. Writes DESIGN.md, tokens.json, notes.md, metadata, and referenced artifact lists into the alias directory, then returns validation for the saved profile."""
         metadata_patch = {
             key: value
             for key, value in {
@@ -157,12 +171,12 @@ def create_mcp_server(store: CopycatStore | None = None, capture_service: Captur
     )
     mcp.tool(
         name="copycat_rename",
-        description="Rename a Copycat alias and update metadata. Refuses target collisions.",
+        description="Rename a saved Copycat alias when the user wants a clearer slug. Moves the alias directory within the Copycat library root, updates metadata, and refuses target collisions.",
     )(copycat_rename)
 
     @mcp.tool()
     def copycat_delete(alias: str) -> dict[str, Any]:
-        """Delete a Copycat alias directory immediately. No confirmation argument is required."""
+        """Delete a saved Copycat profile when the user explicitly wants it removed. Permanently removes the alias directory and its DESIGN.md, tokens, notes, screenshots, and evidence from the Copycat library root."""
         return store.delete(alias)
 
     return mcp

@@ -57,6 +57,10 @@ For opencode:
 
 Restart your MCP client after changing MCP config.
 
+## Optional: bundled agent skill
+
+The package also ships the Copycat agent skill under `copycat/skills/copycat/`. Register that directory with agents that support file-based skills to give them the curated capture workflow, design-authorship rules, and legal guardrails. The MCP tools work without the skill; the skill just makes agent behavior more consistent.
+
 ## Try it
 
 Ask your MCP-aware coding agent for the result you want. You usually do not need to call the tools by hand.
@@ -64,8 +68,9 @@ Ask your MCP-aware coding agent for the result you want. You usually do not need
 ```text
 Capture https://vercel.com as a Copycat profile named vercel.
 Save desktop and mobile screenshots, extract CSS variables and computed styles,
-then write a concise DESIGN.md with colors, typography, spacing, layout patterns,
-component notes, confidence, and caveats.
+then write a TypeUI-style DESIGN.md with detailed, specific replication guidance
+for colors, typography, spacing, layout patterns, component states, accessibility,
+confidence, and caveats.
 ```
 
 ```text
@@ -105,7 +110,7 @@ Copycat writes each profile under:
 The important files are:
 
 ```text
-DESIGN.md       Human-readable design guidance
+DESIGN.md       TypeUI-style human-readable design guidance
 tokens.json     Structured colors, type, spacing, radii, shadows, and other tokens
 notes.md        Additional observations or agent notes
 metadata.json   Source URL, status, confidence, pages, caveats, and file index

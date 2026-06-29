@@ -18,6 +18,19 @@ CONFIDENCE_VALUES = {"low", "medium", "high"}
 PATCHABLE_METADATA_FIELDS = {"status", "confidence", "caveats", "observedNoise"}
 SCREENSHOT_PREFIX = "screenshots/"
 EVIDENCE_PREFIX = "evidence/"
+TYPEUI_DESIGN_HEADINGS = (
+    "## Mission",
+    "## Brand",
+    "## Style Foundations",
+    "## Accessibility",
+    "## Writing Tone",
+    "## Rules: Do",
+    "## Rules: Don't",
+    "## Guideline Authoring Workflow",
+    "## Required Output Structure",
+    "## Component Rule Expectations",
+    "## Quality Gates",
+)
 
 
 class MetadataPage(TypedDict):
@@ -221,7 +234,7 @@ class CopycatStore:
 
         writes: dict[Path, str] = {Path(paths["metadata"]): self._metadata_text(metadata)}
         if design is not None:
-            writes[Path(paths["design"])] = design
+            writes[Path(paths["design"])] = _format_design_document(alias=alias, design=design, metadata=metadata)
         if tokens_text is not None:
             writes[Path(paths["tokens"])] = tokens_text
         if notes is not None:
@@ -607,3 +620,168 @@ def _unique_pages(values: list[MetadataPage]) -> list[MetadataPage]:
         seen.add(key)
         unique.append(page)
     return unique
+
+
+def _format_design_document(*, alias: str, design: str, metadata: CopycatMetadata) -> str:
+    if _is_typeui_design(design):
+        return _ensure_trailing_newline(design)
+
+    source_url = metadata["sourceUrl"]
+    title = _title_from_alias(alias)
+    details = _demote_markdown_headings(design.strip()) or "No detailed capture notes were provided."
+    caveats = _sentence_list(metadata["caveats"]) or "None recorded."
+    observed_noise = _sentence_list(metadata["observedNoise"]) or "None recorded."
+    confidence = metadata["confidence"] if "confidence" in metadata else "not recorded"
+
+    return _ensure_trailing_newline(
+        f"""---
+name: copycat-style-{alias}
+description: {_yaml_quote(f"Implementation-ready Copycat design-system guidance captured from {source_url}.")}
+---
+
+# {title} Design System
+
+## Mission
+
+Replicate the captured site's visual system with implementation-ready, evidence-backed guidance. Use this profile as visual direction; do not copy protected brand assets, logos, or source content unless the project has rights to use them.
+
+## Brand
+
+- Product/brand: {title}
+- Source: {source_url}
+- Product surface: {_product_surface(metadata)}
+- Confidence: {confidence}
+- Caveats: {caveats}
+- Observed noise: {observed_noise}
+
+## Style Foundations
+
+- Visual style: must follow the captured mood, density, hierarchy, interaction rhythm, and component language described below.
+- Typography scale: must use the captured font families, weights, sizes, line heights, and letter spacing when available; otherwise derive the closest consistent scale from `tokens.json` and evidence.
+- Color palette: must map raw captured values into semantic roles before component guidance; prefer `tokens.json` over repeating raw hex values.
+- Spacing scale: must reuse repeated spacing, grid, and container measurements from the capture instead of inventing one-off gaps.
+- Radius, shadow, and motion tokens: must preserve repeated shape, elevation, transition, and easing patterns from the capture.
+
+### Captured Details
+
+{details}
+
+## Accessibility
+
+- Target: WCAG 2.2 AA.
+- Keyboard-first interactions required for every interactive component.
+- Focus-visible rules required; do not hide focus indicators.
+- Contrast constraints required for text, icons, borders, charts, and state changes.
+- Motion must respect `prefers-reduced-motion` while keeping state changes understandable.
+
+## Writing Tone
+
+Concise, confident, and implementation-focused. Use specific values, states, and layout rules; avoid vague aesthetic labels unless they are tied to captured evidence.
+
+## Rules: Do
+
+- Use semantic tokens in implementation guidance, not raw values, when a token exists.
+- Define required states for interactive UI: default, hover, focus-visible, active, disabled, loading, and error.
+- Specify responsive behavior, density changes, overflow handling, and edge-case behavior.
+- Preserve component anatomy, hierarchy, and spacing relationships from the captured site.
+- Ground visual claims in screenshots, CSS variables, computed styles, DOM snapshots, notes, or `tokens.json`.
+
+## Rules: Don't
+
+- Do not copy logos, proprietary illustrations, brand names, or marketing text into new products unless explicitly allowed.
+- Do not introduce low-contrast text, hidden focus indicators, or pointer-only interactions.
+- Do not create one-off spacing, type, color, radius, shadow, or motion exceptions without a captured precedent.
+- Do not flatten distinctive layout rhythm into generic SaaS cards when the capture shows stronger structure.
+- Do not omit mobile behavior, long-content handling, empty states, or error states for reusable components.
+
+## Guideline Authoring Workflow
+
+1. Restate the design intent in one sentence before implementing.
+2. Map foundations to semantic tokens from `tokens.json`.
+3. Define component anatomy, variants, states, and interactions.
+4. Add accessibility acceptance criteria for each reusable component.
+5. Add anti-patterns and migration notes when adapting the style to a different product.
+6. End with a QA checklist tied to the captured evidence.
+
+## Required Output Structure
+
+- Context and goals.
+- Design tokens and foundations.
+- Component-level rules: anatomy, variants, states, responsive behavior.
+- Accessibility requirements and testable acceptance criteria.
+- Content and tone standards with examples.
+- Anti-patterns and prohibited implementations.
+- QA checklist.
+
+## Component Rule Expectations
+
+- Include keyboard, pointer, and touch behavior.
+- Include spacing and typography token requirements.
+- Include long-content, overflow, empty-state, loading-state, and error-state handling.
+- Include responsive rules for desktop, tablet, and mobile when the evidence supports them.
+- Include implementation notes that distinguish must-have captured patterns from optional stylistic flourishes.
+
+## Quality Gates
+
+- Every non-negotiable rule uses "must".
+- Every recommendation uses "should".
+- Every accessibility rule is testable in implementation.
+- Every repeated visual pattern is represented as a token or reusable component rule.
+- Prefer system consistency over local visual exceptions.
+
+## QA Checklist
+
+- [ ] The implementation uses the semantic tokens from `tokens.json` or clearly maps captured values into project tokens.
+- [ ] Primary layouts match captured spacing, density, hierarchy, and responsive behavior.
+- [ ] Interactive components include default, hover, focus-visible, active, disabled, loading, and error states.
+- [ ] Text and non-text contrast meet WCAG 2.2 AA.
+- [ ] Focus order, keyboard operation, and reduced-motion behavior are verified.
+- [ ] The UI follows the captured style without copying protected content or assets.
+"""
+    )
+
+
+def _is_typeui_design(design: str) -> bool:
+    stripped = design.lstrip()
+    return stripped.startswith("---") and all(heading in design for heading in TYPEUI_DESIGN_HEADINGS)
+
+
+def _ensure_trailing_newline(value: str) -> str:
+    return value if value.endswith("\n") else f"{value}\n"
+
+
+def _title_from_alias(alias: str) -> str:
+    return " ".join(word.capitalize() for word in alias.split("-"))
+
+
+def _product_surface(metadata: CopycatMetadata) -> str:
+    if not metadata["pages"]:
+        return f"web page captured from {metadata['sourceUrl']}"
+
+    surfaces: list[str] = []
+    for page in metadata["pages"]:
+        name = page["name"] if "name" in page else page["type"]
+        reason = f" ({page['reason']})" if "reason" in page else ""
+        surfaces.append(f"{page['type']} {name}: {page['url']}{reason}")
+    return "; ".join(surfaces)
+
+
+def _sentence_list(values: list[str]) -> str:
+    return "; ".join(value.strip() for value in values if value.strip())
+
+
+def _demote_markdown_headings(markdown: str) -> str:
+    lines: list[str] = []
+    for line in markdown.splitlines():
+        match = re.match(r"^(#{1,6})(\s+.*)$", line)
+        if match is None:
+            lines.append(line)
+            continue
+        hashes, text = match.groups()
+        lines.append(f"{'#' * min(len(hashes) + 3, 6)}{text}")
+    return "\n".join(lines)
+
+
+def _yaml_quote(value: str) -> str:
+    escaped = value.replace("'", "''")
+    return f"'{escaped}'"

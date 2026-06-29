@@ -66,6 +66,7 @@ def test_overwrite_preserves_existing_alias_when_replacement_setup_fails(
 ) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
     store.save(alias="linear", design="# Existing\n", tokens={"colors": {}})
+    existing_design = store.get("linear")["design"]
     real_metadata_text = store._metadata_text
 
     def fail_new_metadata(value: Any) -> str:
@@ -80,7 +81,8 @@ def test_overwrite_preserves_existing_alias_when_replacement_setup_fails(
 
     profile = store.get("linear")
     assert profile["metadata"]["sourceUrl"] == "https://linear.app/"
-    assert profile["design"] == "# Existing\n"
+    assert profile["design"] == existing_design
+    assert "Existing" in profile["design"]
 
 
 def test_save_writes_profile_metadata_evidence_and_returns_validation(store: CopycatStore, tmp_path: Path) -> None:
@@ -120,6 +122,109 @@ def test_save_writes_profile_metadata_evidence_and_returns_validation(store: Cop
     assert profile["metadata"]["files"]["evidence"] == ["evidence/pages/pricing/computed-styles.json"]
     assert len(profile["metadata"]["pages"]) == 1
     assert profile["validation"]["valid"] is True
+
+
+def test_save_formats_design_with_typeui_template_and_preserves_capture_details(store: CopycatStore) -> None:
+    store.create(alias="linear", source_url="https://linear.app/")
+
+    result = store.save(
+        alias="linear",
+        design="# Linear capture\n\n- Primary background: #08090a.\n- Buttons use 8px radius with tight labels.\n",
+        tokens={"colors": {"background": "#08090a"}},
+        pages=[
+            {
+                "type": "seed",
+                "name": "home",
+                "url": "https://linear.app/",
+                "reason": "Hero layout, navigation, and primary calls to action.",
+            }
+        ],
+        metadata_patch={"status": "profiled", "confidence": "high", "caveats": ["Public pages only."]},
+    )
+
+    design = result["design"]
+    assert design.startswith("---\nname: copycat-style-linear\n")
+    assert "# Linear Design System" in design
+    for heading in [
+        "## Mission",
+        "## Brand",
+        "## Style Foundations",
+        "## Accessibility",
+        "## Writing Tone",
+        "## Rules: Do",
+        "## Rules: Don't",
+        "## Guideline Authoring Workflow",
+        "## Required Output Structure",
+        "## Component Rule Expectations",
+        "## Quality Gates",
+    ]:
+        assert heading in design
+    assert "Primary background: #08090a" in design
+    assert "Buttons use 8px radius with tight labels." in design
+    assert "#### Linear capture" in design
+    assert "- Source: https://linear.app/" in design
+    assert "- Product surface: seed home: https://linear.app/ (Hero layout, navigation, and primary calls to action.)" in design
+    assert "- Confidence: high" in design
+    assert "- Caveats: Public pages only." in design
+
+
+def test_save_does_not_rewrap_existing_typeui_design(store: CopycatStore) -> None:
+    store.create(alias="linear", source_url="https://linear.app/")
+    templated_design = """---
+name: copycat-style-linear
+description: Existing template.
+---
+
+# Linear Design System
+
+## Mission
+
+Existing mission.
+
+## Brand
+
+Existing brand.
+
+## Style Foundations
+
+Existing foundations.
+
+## Accessibility
+
+Existing accessibility.
+
+## Writing Tone
+
+Existing tone.
+
+## Rules: Do
+
+Existing do rules.
+
+## Rules: Don't
+
+Existing don't rules.
+
+## Guideline Authoring Workflow
+
+Existing workflow.
+
+## Required Output Structure
+
+Existing structure.
+
+## Component Rule Expectations
+
+Existing expectations.
+
+## Quality Gates
+
+Existing gates.
+"""
+
+    result = store.save(alias="linear", design=templated_design, tokens={})
+
+    assert result["design"] == templated_design
 
 
 def test_save_rejects_evidence_outside_or_missing_alias_directory(store: CopycatStore) -> None:
@@ -175,12 +280,14 @@ def test_save_deduplicates_pages(store: CopycatStore) -> None:
 def test_save_rejects_unserializable_tokens_before_writing_profile_files(store: CopycatStore) -> None:
     store.create(alias="linear", source_url="https://linear.app/")
     store.save(alias="linear", design="# Existing\n", tokens={"colors": {}})
+    existing_design = store.get("linear")["design"]
 
     with pytest.raises(TypeError):
         store.save(alias="linear", design="# New\n", tokens={"bad": object()})
 
     profile = store.get("linear")
-    assert profile["design"] == "# Existing\n"
+    assert profile["design"] == existing_design
+    assert "New" not in profile["design"]
     assert profile["tokens"] == {"colors": {}}
 
 
