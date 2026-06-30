@@ -6,6 +6,25 @@ Point an MCP client at a site, give it an alias, and Copycat saves the screensho
 
 This avoids your agent reinventing the wheel on every new project. The agent can inspect a saved profile instead of relying on a one-time page description from an old session.
 
+## Before and after
+
+Copycat captures a site's visual system, then lets an agent reuse that direction for original UI work.
+
+<table>
+  <tr>
+    <th>Original site</th>
+    <th>With Copycat</th>
+  </tr>
+  <tr>
+    <td><a href="examples/firecrawl-original.png"><img src="examples/firecrawl-original.png" alt="Original Firecrawl homepage" width="390"></a></td>
+    <td><a href="examples/firecrawl-copycat.png"><img src="examples/firecrawl-copycat.png" alt="Copycat-generated page using Firecrawl visual direction" width="390"></a></td>
+  </tr>
+  <tr>
+    <td><a href="examples/greptile-original.png"><img src="examples/greptile-original.png" alt="Original Greptile homepage" width="390"></a></td>
+    <td><a href="examples/greptile-copycat.png"><img src="examples/greptile-copycat.png" alt="Copycat-generated page using Greptile visual direction" width="390"></a></td>
+  </tr>
+</table>
+
 ## How it works
 
 A typical capture can start with one sentence:
